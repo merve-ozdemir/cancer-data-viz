@@ -1,0 +1,64 @@
+---
+title: "Data Visualization using Cancer Patient Data"
+author: "Merve Ozdemir"
+date: "2025-07-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Introduction
+This report explores synthetic cancer patient records from Denmark. We examine demographic trends, cancer types, and age distributions to understand patterns in diagnosis and treatment.
+
+The dataset contains 3,000 rows and 25 variables including cancer type, age, treatment details, risk factors, and survival outcomes.
+
+#Load Libraries and Data
+
+```{r}
+# Load required packages
+library(tidyverse)
+
+# Read the dataset (assumes file is in the same directory)
+data <- read_csv("cancer_data_denmark.csv")
+
+# View first few rows
+head(data)
+```
+
+#Plot 1: Distribution of Cancer Types
+We start with a bar plot showing the frequency of different cancer types.
+
+```{r}
+# Bar plot
+plot_cancer_type <- ggplot(data, aes(x = Cancer_Type)) +
+  geom_bar(fill = "skyblue") +
+  coord_cartesian(ylim = c(425, 525)) +
+  labs(
+    title = "Cancer Type Distribution",
+    x = "Cancer Type",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+# Display the plot
+plot_cancer_type
+```
+#Plot 2: Age Distribution of Patients
+Next, we visualize the distribution of patient ages using a density plot. Transparency (alpha) is added to make the background and gridlines more visible.
+
+```{r}
+plot_age <- ggplot(data, aes(x = Age)) +
+  geom_density(fill = "skyblue", color = "darkblue", alpha = 0.4) +
+  scale_x_continuous(limits = c(0, 100), breaks = seq(0, 100, 20)) +
+  labs(
+    title = "Age Distribution of Cancer Patients",
+    x = "Age",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+plot_age
+```
+

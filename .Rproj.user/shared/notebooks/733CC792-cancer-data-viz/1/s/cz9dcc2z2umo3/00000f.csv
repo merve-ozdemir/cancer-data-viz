@@ -1,0 +1,16 @@
+"0","# Load required packages"
+"0","library(tidyverse)"
+"0",""
+"0","# Read the dataset (assumes file is in the same directory)"
+"0","data <- read_csv(""cancer_data_denmark.csv"")"
+"2","[1mRows: [22m[34m3000[39m [1mColumns: [22m[34m25[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m──────────────────────────────────────────────────────────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m  (14): Gender, Region, Cancer_Type, Stage, Treatment_Type, Metastasis, Genetic_Mutation, S...
+[32mdbl[39m   (7): Patient_ID, Age, Tumor_Size_cm, Lymph_Nodes_Examined, Lymph_Nodes_Positive, BMI, Su...
+[34mdate[39m  (4): Diagnosis_Date, Treatment_Start_Date, Treatment_End_Date, Followup_Date"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","# View first few rows"
+"0","head(data)"
