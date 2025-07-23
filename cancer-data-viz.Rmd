@@ -9,12 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Introduction
-This report explores synthetic cancer patient records from Denmark. We examine demographic trends, cancer types, and age distributions to understand patterns in diagnosis and treatment.
+## Introduction
+In this project, I practiced my data analysis and visualization skills with R, using a public dataset of cancer patients in Denmark. I examined demographic trends, cancer types, and age distributions to understand patterns in diagnosis and treatment.
 
-The dataset contains 3,000 rows and 25 variables including cancer type, age, treatment details, risk factors, and survival outcomes.
+I downloaded the "Cancer Patient Data in Denmark" dataset through Kaggle, a data science platform that contains publicly available datasets. The dataset contains 3,000 rows and 25 variables including cancer type, age, treatment details, risk factors, and survival outcomes.
 
-#Load Libraries and Data
+Below, I share my code, plots and thought process throughout the project, as I explore the dataset and try to come up with interesting questions and hypotheses. 
+
+## Getting started: Loading libraries and data
 
 ```{r}
 # Load required packages
@@ -27,8 +29,9 @@ data <- read_csv("cancer_data_denmark.csv")
 head(data)
 ```
 
-#Plot 1: Distribution of Cancer Types
-We start with a bar plot showing the frequency of different cancer types.
+## Exploring the data with basic plots
+
+The first thing I was interested in is the cancer types included in the dataset. I thus started with a bar plot showing the frequency of different cancer types. When I first generated this plot I noticed that the difference in the count of different cancer types was very small compared to the total observations, so I used coord_cartesian() to "zoom in" on the y axis to better visualize the difference.
 
 ```{r}
 # Bar plot
@@ -42,11 +45,12 @@ plot_cancer_type <- ggplot(data, aes(x = Cancer_Type)) +
   ) +
   theme_minimal()
 
-# Display the plot
+ggsave("plots/cancer_type_distribution.png", plot = plot_cancer_type, width = 8, height = 6, dpi = 300, bg = "white")
+
 plot_cancer_type
 ```
-#Plot 2: Age Distribution of Patients
-Next, we visualize the distribution of patient ages using a density plot. Transparency (alpha) is added to make the background and gridlines more visible.
+
+Next, I visualized the distribution of patient ages using a density plot. I added transparency (alpha) to make the background and gridlines more visible. 
 
 ```{r}
 plot_age <- ggplot(data, aes(x = Age)) +
@@ -59,6 +63,194 @@ plot_age <- ggplot(data, aes(x = Age)) +
   ) +
   theme_minimal()
 
+ggsave("plots/age_distribution.png", plot = plot_age, width = 8, height = 6, dpi = 300, bg = "white")
+
 plot_age
+```
+
+The distributions were similar to what I expected. Now that I have this most basic info about the patients in the dataset (i.e. cancer type and age), I want to combine this information to see whether there are any interesting trends I could observe. For instance, is there any cancer type where the patients diagnosed are overall "younger" than in others? 
+
+I generated a violin plot to see the age distribution across cancer types in my dataset. 
+
+```{r}
+plot_age_vs_cancertype <- ggplot(data, aes(x = Cancer_Type, y = Age)) + geom_violin(fill = "skyblue", alpha = 0.4) + labs(title = "Age Distribution by Cancer Type",
+       x = "Cancer Type",
+       y = "Age") +
+  theme_minimal() 
+
+ggsave("plots/age_vs_cancertype.png", plot = plot_age_vs_cancertype, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_age_vs_cancertype
+```
+
+Overall, there doesn't seem to be a starking difference in the age distribution across cancers. What about gender?
+
+```{r}
+plot_gender_vs_cancertype <- ggplot(data, aes(x = Cancer_Type, fill = Gender)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Gender within Each Cancer Type",
+       x = "Cancer Type",
+       y = "Proportion",
+       fill = "Gender") +
+  theme_minimal()
+
+ggsave("plots/gender_vs_cancertype.png", plot = plot_gender_vs_cancertype, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_gender_vs_cancertype
+```
+
+Seems like gender differences, too, are quite subtle in all types of cancer included in the dataset. Next, I wanted to see whether there were differences in survival outcome across different cancers, whether some cancers were more "deadly" than others. Of course, survival depends on many factors but it is still interesting to look for overall trends.
+
+```{r}
+plot_survival_vs_cancertype <- ggplot(data, aes(x = Cancer_Type, y = Survival_Months)) +
+  geom_boxplot(fill = "turquoise") +
+  labs(title = "Survival Months by Cancer Type",
+       x = "Cancer Type",
+       y = "Survival Months") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("plots/survival_vs_cancertype.png", plot = plot_survival_vs_cancertype, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_survival_vs_cancertype
+```
+
+Similarly, do certain cancers have more occurances of relapse?
+
+
+```{r}
+plot_relapse_vs_cancertype <- ggplot(data, aes(x = Cancer_Type, fill = Relapse)) + scale_y_continuous(labels = scales::percent_format()) + geom_bar(position = "fill") + labs(
+    title = "Relapse Rates by Cancer Type",
+    x = "Cancer Type",
+    y = "Percentage of Patients",
+    fill = "Relapse"
+  ) +
+  theme_minimal()
+
+ggsave("plots/relapse_vs_cancertype.png", plot = plot_relapse_vs_cancertype, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_relapse_vs_cancertype
+
+```
+
+So far the data seems quite well balanced on these fronts! I next looked at patient habits such as smoking and alcohol consumption, which are known to cause cancer and therefore could point to certain trends... First, a general look at these habits without distinguishing between different cancer types:
+
+```{r}
+plot_smoking <- ggplot(data, aes(x = Cancer_Type, fill = Smoking_Status)) +
+  geom_bar(position = "dodge") +  # proportions within cancer type
+  labs(title = "Smoking Status Distribution by Cancer Type",
+       x = "Cancer Type",
+       y = "Count",
+       fill = "Smoking Status") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("plots/smoking.png", plot = plot_smoking, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_smoking
+
+```
+
+At the first glance, what was most interesting to me with this plot is that there are more non-smokers who were diagnosed with lung cancer than former/current smokers. But of course, smokers in this dataset are separated into "former" and "current" smokers. Unfortunately, I don't have enough information about the "study" conducted (since it isn't real--this dataset was created for educational purposes) I don't know what "former" implies; these patients could have quit smoking years ago, or maybe only for a week. So I'm not so interested in this labeling, I am rather interested in comparing people who never smoked with people who are (or were, at one point) smokers. 
+
+```{r}
+lung_cancer_data <- data %>% filter(Cancer_Type == "Lung") %>% mutate(Smoking_Status = ifelse(Smoking_Status == "Never", "never", "smoker")) #reminder of syntax: ifelse(condition, value_if_true, value_if_false)
+
+plot_lung_cancer_data <- lung_cancer_data %>% ggplot(aes(x = Cancer_Type, fill = Smoking_Status)) + geom_bar(position = "dodge") + labs(title = "Smoking Status Distribution by Cancer Type",
+       x = "Cancer Type",
+       y = "Count",
+       fill = "Smoking Status") +
+  theme_minimal()
+
+ggsave("plots/lung_cancer.png", plot = plot_lung_cancer_data, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_lung_cancer_data
+```
+
+Now this makes a lot more sense to me visually! And what if we used these same simplified smoker vs. non-smoker categories to recreate the plot from before, across all cancer types?
+
+```{r}
+smokers_simplified <- data %>% mutate(Smoking_Status = ifelse(Smoking_Status == "Never", "never", "smoker"))
+plot_smoking_simplified <- ggplot(smokers_simplified, aes(x = Cancer_Type, fill = Smoking_Status)) +
+  geom_bar(position = "dodge") +  # proportions within cancer type
+  labs(title = "Smoking Status Distribution by Cancer Type",
+       x = "Cancer Type",
+       y = "Count",
+       fill = "Smoking Status") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("plots/smoking_simplified.png", plot = plot_smoking_simplified, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_smoking_simplified
+```
+
+As expected, smokers (former and current) make up a higher proportion of patients in each cancer type. 
+
+Before further analysis, I want to repeat these steps for alcohol consumption.
+
+
+```{r}
+plot_alcohol <- ggplot(data, aes(x = Cancer_Type, fill = Alcohol_Consumption)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Alcohol Consumption by Cancer Type",
+       x = "Cancer Type",
+       y = "Count",
+       fill = "Alcohol Consumption") +
+  theme_minimal()
+
+ggsave("plots/alcohol.png", plot = plot_alcohol, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_alcohol
+
+alcohol_simplified <- data %>% mutate(Alcohol_Consumption = ifelse(Alcohol_Consumption == "None", "none", "drinker"), Alcohol_Consumption = factor(Alcohol_Consumption, levels = c("none", "drinker"))
+  )
+plot_alcohol_simplified <- alcohol_simplified %>% ggplot(aes(x = Cancer_Type, fill = Alcohol_Consumption)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Alcohol Consumption by Cancer Type",
+       x = "Cancer Type",
+       y = "Count",
+       fill = "Alcohol Consumption") +
+  theme_minimal()
+
+ggsave("plots/alcohol_simplified.png", plot = plot_alcohol_simplified, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_alcohol_simplified
+
+```
+
+I was also interested in the family history of these patients. This is a good way to test the "genetic" component of cancer, though of course there are always many factors at play. 
+
+```{r}
+plot_family_history <- ggplot(data, aes(x = Cancer_Type, fill = Family_History)) + geom_bar(position = "fill") + labs(title = "Family History across Cancer Types", x = "Cancer Type", y = "Proportion", fill = "Family History") + theme_minimal()
+
+ggsave("plots/family_history.png", plot = plot_family_history, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_family_history
+```
+
+Finally, I wanted to see what kind of treatments these patients received, how common each treatment was, and whether one type of cancer got treated with a specific treatment more than others, etc. Below I explored the trends with different types of treatments included in the dataset. 
+
+```{r}
+data %>% count(Treatment_Type)
+
+plot_treatment_facet <- data %>%
+  ggplot(aes(x = Treatment_Type, fill = Treatment_Type)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ Cancer_Type) + #facet_wrap creates a subplot for each cancer type
+  coord_flip() + #flipped coordinates bc labels are easier to read horizontally
+  labs(
+    title = "Treatment Types by Cancer Type",
+    x = NULL,  
+    y = "Count",
+    fill = "Treatment Type"
+  ) +
+  theme_minimal() 
+
+ggsave("plots/treatments.png", plot = plot_treatment_facet, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_treatment_facet
+
+
 ```
 
