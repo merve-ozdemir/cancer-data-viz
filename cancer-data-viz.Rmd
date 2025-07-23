@@ -83,7 +83,24 @@ ggsave("plots/age_vs_cancertype.png", plot = plot_age_vs_cancertype, width = 8, 
 plot_age_vs_cancertype
 ```
 
-Overall, there doesn't seem to be a starking difference in the age distribution across cancers. What about gender?
+I wondered if age also factors into survival of patients. 
+
+```{r}
+plot_age_vs_survival <- ggplot(data, aes(x = Age, y = Survival_Months)) +
+  geom_point(alpha = 0.4, color = "steelblue") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkred") +  # trend line
+  labs(title = "Survival Months by Age",
+       x = "Age",
+       y = "Survival Months") +
+  theme_minimal()
+
+ggsave("plots/age_vs_survival.png", plot = plot_age_vs_survival, width = 8, height = 6, dpi = 300, bg = "white")
+
+
+plot_age_vs_survival
+```
+
+Interesting! I would have expected age to affect survival outcome, but that doesn't seem to be the case, at least not at first glance. Overall, there doesn't seem to be a starking difference in the age distribution across cancers. What about gender?
 
 ```{r}
 plot_gender_vs_cancertype <- ggplot(data, aes(x = Cancer_Type, fill = Gender)) +
@@ -229,7 +246,7 @@ ggsave("plots/family_history.png", plot = plot_family_history, width = 8, height
 plot_family_history
 ```
 
-Finally, I wanted to see what kind of treatments these patients received, how common each treatment was, and whether one type of cancer got treated with a specific treatment more than others, etc. Below I explored the trends with different types of treatments included in the dataset. 
+Next, I wanted to see what kind of treatments these patients received, how common each treatment was, and whether one type of cancer got treated with a specific treatment more than others, etc. Below I explored the trends with different types of treatments included in the dataset. 
 
 ```{r}
 data %>% count(Treatment_Type)
@@ -253,4 +270,81 @@ plot_treatment_facet
 
 
 ```
+
+I noticed that there is also a variable called "Stage," which depicts which stage the cancer was diagnosed in. I wondered if there are any links between cancer progression and the type of treatment provided. 
+
+```{r}
+plot_treatment_per_stage <- ggplot(data, aes(x = Stage, fill = Treatment_Type)) + geom_bar(position = "fill") + labs(title = "Types of Treatment for Each Cancer Stage", x = "Stage", y = "Proportion") + theme_minimal()
+
+ggsave("plots/treatment_per_stage.png", plot = plot_treatment_per_stage, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_treatment_per_stage
+
+plot_stage_per_treatment <- ggplot(data, aes(x = Treatment_Type, fill = Stage)) + geom_bar(position = "fill") + labs(title = "Types of Treatment for Each Cancer Stage", x = "Treatment", y = "Proportion") + theme_minimal()
+
+ggsave("plots/stage_per_treatment.png", plot = plot_stage_per_treatment, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_stage_per_treatment
+```
+
+It seems like every therapy has been used with cancers at every stage in this dataset. That is good to know; the dataset once again seems to be very balanced.
+
+Finally, I wanted to take a look at the mutations variable of the dataset.
+
+```{r}
+count(data, Genetic_Mutation)
+```
+Seems like there are only four observations for genetic mutation: BRCA1, BRCA2, TP53, and none. 
+
+```{r}
+plot_mutations <- ggplot(data, aes(x = Cancer_Type, fill = Genetic_Mutation)) + geom_bar(position = "dodge") + labs(title = "Genetic Mutations across Cancer Types", x = "Cancer Type", fill = "Genetic Mutation") + theme_minimal()
+
+ggsave("plots/mutations.png", plot = plot_mutations, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_mutations
+```
+
+```{r}
+mutations <- data %>% filter(Genetic_Mutation %in% c("BRCA1", "BRCA2", "TP53"))
+mutations
+
+plot_cancertype_with_mutation <- mutations %>% ggplot(aes(x = Cancer_Type)) + geom_bar(fill = "skyblue", width = 0.5) + coord_cartesian(ylim = c(200, 400)) + labs(title = "Types of Cancers with mutations identified", x = "Cancer Type", y = "Count") + theme_minimal()
+
+ggsave("plots/cancertype_mutations.png", plot = plot_cancertype_with_mutation, width = 8, height = 6, dpi = 300, bg = "white")
+
+plot_cancertype_with_mutation
+```
+
+Seems like lung cancer patients of this dataset have the most number of mutations identified. From one of the earlier plots we know that all three mutations "BRCA1", "BRCA2" and "TP53" are observed at similar counts in this cancer type, so I didn't plot that again separately. Instead, I decided to "zoom in" on this particular cancer type. To practice, I decided to try to build a predictive model of survival for lung cancer patients, using the data I have at hand. 
+
+## Building a predictive model of survival for lung cancer
+
+First, I need to set the stage for what I want to do. Below, I documented some preliminary steps, some of which were completely new to me, so I tried to take good notes.
+
+```{r}
+#First, filter the data to get a data frame with only lung cancer cases 
+lung_data <- data %>%
+  filter(Cancer_Type == "Lung") %>%
+  drop_na(Survival_Months)
+
+#Next, select the columns/variables you want to keep as "predictors" of survival
+lung_model_data <- lung_data %>% 
+  select(Age, Gender, Cancer_Type, Stage, Smoking_Status, Alcohol_Consumption, BMI, Income_Level)
+lung_model_data$Stage <- factor(lung_model_data$Stage, ordered = TRUE)
+
+#training
+set.seed(123) #makes sure random split is repeatable, otherwise i'd get a new split each time
+train_indices <- sample(nrow(lung_model_data), 0.8 * nrow(lung_model_data)) #This gives me a random list of row numbers to be used for "training," all of which are saved in train_indices
+#sample() randomly picks 80% of rows 
+#nrow() total number of rows in the dataset
+
+train_data <- lung_model_data[train_indices, ]
+test_data <- lung_model_data[-train_indices, ] #all the rows that are remaining (bc of the -)
+```
+
+In these steps I filtered and selected certain factors from my dataset in order to create the data frame I'll be working with, which consists only of lung cancer patients and the "predictor" variables I decided to focus on. In the last section I included a "training/testing" step, where I "split" the data into two: one part (80%) used for training the model, the rest (20%) used to test the model. 
+
+I learned that if you use the exact same data to both "train" and "test" your model, even if it's not working properly (i.e. if it is only memorizing things rather than actually "learning") everything will seem to work perfectly. To make sure that this isn't happening, I train and test the model with different parts of my data. Basically, I make sure that the model works even with new, previously unseen data.
+
+Now, it's time to build the model! 
 
