@@ -734,6 +734,8 @@ lung cancer patients, using the data I have at hand.</p>
 </div>
 <div id="building-a-predictive-model-of-survival-for-lung-cancer" class="section level2">
 <h2>Building a predictive model of survival for lung cancer</h2>
+<div id="first-steps-setting-up-the-training-data" class="section level3">
+<h3>First steps &amp; setting up the training data</h3>
 <p>First, I need to set the stage for what I want to do. Below, I
 documented some preliminary steps, some of which were completely new to
 me, so I tried to take good notes.</p>
@@ -744,8 +746,7 @@ lung_data &lt;- data %&gt;%
 
 #Next, select the columns/variables you want to keep as &quot;predictors&quot; of survival
 lung_model_data &lt;- lung_data %&gt;% 
-  select(Age, Gender, Cancer_Type, Stage, Smoking_Status, Alcohol_Consumption, BMI, Income_Level)
-lung_model_data$Stage &lt;- factor(lung_model_data$Stage, ordered = TRUE)
+  select(Survival_Months, Age, Stage, Smoking_Status, Alcohol_Consumption)
 
 #training
 set.seed(123) #makes sure random split is repeatable, otherwise i&#39;d get a new split each time
@@ -768,6 +769,149 @@ to work perfectly. To make sure that this isn’t happening, I train and
 test the model with different parts of my data. Basically, I make sure
 that the model works even with new, previously unseen data.</p>
 <p>Now, it’s time to build the model!</p>
+</div>
+<div id="building-the-linear-regression-model" class="section level3">
+<h3>Building the linear regression model</h3>
+<p>During the building of my model, I encountered many unexpected
+problems, which were not errors in the code but rather outputs that just
+didn’t “make sense,” which led me to realize that I had overlooked some
+flaws in my data.</p>
+<p>For instance, I learned that modeling is different for
+numeric/continuous variables (such as age) and categorial variables
+(such as smoking status); with a numeric/continuous variable like age,
+the model estimates a coefficient to represent the change in survival in
+the case of a one-unit (!) change in the variable (e.g. one additional
+year of age, one extra month, etc). But in the case of a categorical
+variable, it requires a “baseline” to compare every other category to.
+This baseline acts as a sort of reference.</p>
+<p>When I first set up my model, I realized that the output was only
+showing non-smokers and former-smokers, current-smokers were not present
+because the model had used this data as the “reference/baseline,” which,
+of course, doesn’t make much sense. If anything, the baseline for this
+variable should have been non-smokers. I learned that R uses whatever
+“level” is at the top as the baseline in such a case, so if I wanted the
+reference variable to be accurate, I needed to reorder the layers.</p>
+<p>To do this, I needed to convert all my character variables to
+factors, and then re-level. Below, I started by doing this simple
+reorganization, followed by the building of the final model.</p>
+<pre class="r"><code># Convert character columns to factors
+train_data &lt;- train_data %&gt;%
+  mutate(
+    Stage = as.factor(Stage),
+    Smoking_Status = as.factor(Smoking_Status),
+    Alcohol_Consumption = as.factor(Alcohol_Consumption)
+  )
+
+# Re-level to set up the correct baseline
+train_data$Smoking_Status &lt;- relevel(train_data$Smoking_Status, ref = &quot;Never&quot;)
+train_data$Alcohol_Consumption &lt;- relevel(train_data$Alcohol_Consumption, ref = &quot;None&quot;)
+
+
+model &lt;- lm(Survival_Months ~ Age + Stage + Smoking_Status + Alcohol_Consumption, data = train_data)
+
+summary(model)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = Survival_Months ~ Age + Stage + Smoking_Status + 
+##     Alcohol_Consumption, data = train_data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -66.880 -28.733   0.009  28.299  64.752 
+## 
+## Coefficients:
+##                             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)                 66.34057    6.34477  10.456   &lt;2e-16 ***
+## Age                         -0.04054    0.08158  -0.497    0.619    
+## StageII                      7.97211    4.87499   1.635    0.103    
+## StageIII                    -0.50999    4.53976  -0.112    0.911    
+## StageIV                      7.06697    4.75678   1.486    0.138    
+## Smoking_StatusCurrent       -4.97288    4.03154  -1.233    0.218    
+## Smoking_StatusFormer        -0.27703    4.05209  -0.068    0.946    
+## Alcohol_ConsumptionHeavy    -5.94393    4.20068  -1.415    0.158    
+## Alcohol_ConsumptionModerate -6.03977    4.24953  -1.421    0.156    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 33.59 on 402 degrees of freedom
+## Multiple R-squared:  0.02456,    Adjusted R-squared:  0.005152 
+## F-statistic: 1.265 on 8 and 402 DF,  p-value: 0.26</code></pre>
+<p>Great! Now I had built my linear regression model to predict
+Survival_Months. I spent some time going over the elements of the output
+in order to understand exactly what I was seeing. Here, I document some
+of my key findings:</p>
+<p>The “intercept” is the starting point of the prediction, showing me
+the predicted survival when all of the other variables are at their
+baseline value. The “coefficients,” on the other hand, consider how the
+predicted survival would change (!) if one of the variables would
+increase or decrease, assuming that all others remain at baseline. This
+way, there are estimates for the influence of each variable
+individually.</p>
+<p>For example, the estimate value -0.023 for “Age” means that every
+additional year of age decreases survival months by this much, obviously
+a very tiny effect, also identified as being statistically insignificant
+by our model. This makes sense, considering I already plotted the age
+vs. survival data and saw that age didn’t drastically influence survival
+months of a patient.</p>
+<p>The statistically significant estimates of the model are usually
+marked by an asterisks (*), and since I see none here, I concluded that
+despite some differences, no variable has an effect on survival beyond
+whatever is possible by chance.</p>
+<p>Finally, I took a look at the Multiple R-squared: 0.02456 value,
+which let me know that only 3.2% of the variation in survival is
+explained by this model. Similarly, the p-value of 0.26 suggests overall
+model is not statistically significant.</p>
+</div>
+</div>
+<div id="conclusions" class="section level2">
+<h2>Conclusions</h2>
+<p>Overall, this project was great for me to practice data visualization
+with R, and to try out building a linear regression model for the first
+time. There is still a lot I have to learn, especially in regards to
+modeling, so I am perfectly aware that this was not in any way perfect.
+What matters to me at the moment is to actively try to improve my
+skills!</p>
+<p>My main conclusion was that this dataset was very balanced; I failed
+to identify any variables that showed a statistically significant
+correlation with either survival outcome or cancer type. In all the
+cases I explored, there was an almost equal division between the
+different values of the variables. I am curious how it would be like
+working with a real dataset rather than a synthetic one, and will maybe
+try that next time!</p>
+<p>My model using lm() also confirmed my findings from the data viz,
+which was that there was no statistically significant “predictor” of
+lung cancer survival that I could use from this dataset using such a
+model. To put this finding in the context of the real world, lung cancer
+survival likely depends on more detailed clinical variables — like exact
+tumor size, genetic mutations, treatment response, etc. This dataset
+didn’t have many clinical variables, and I also chose to focus on only a
+subset of variables for the sake of simplicity during my practice. The
+reality is much more nuanced, and many predictors may be weakly related
+or have overlapping effects.</p>
+</div>
+<div id="possible-future-work" class="section level2">
+<h2>Possible future work</h2>
+<p>I would definitely like to return to this project once I have
+improved my data viz and modeling skills. I would then add to my code
+and explore the dataset in newer, more advanced ways, maybe taking this
+one step further. For instance, here I only focused on linear regression
+since that is all I know so far, but I would like to practice using
+decision trees or random forests in the future, as these can handle
+non-linear patterns better than linear regression.</p>
+<p>I would also like to try modeling using more clinical predictors,
+such as tumor size, metastasis, lymph node examined, etc.</p>
+<p>I coded the entire project in R, but I also enjoy coding in Python,
+and would consider using the same dataset for analysis in Python, just
+to see the differences in the process!</p>
+</div>
+<div id="feedback" class="section level2">
+<h2>Feedback</h2>
+<p>As always, I am open to any feedback! I am a wet-lab biologist who is
+completely self-taught in anything computer-related, and I still have a
+long way to go to reach the level I want to be at! If you noticed any
+errors in my code/thinking, or have suggestions on how I could improve
+this project, reach out! Any feedback from you is always welcome and
+appreciated. Thanks very much :-)</p>
 </div>
 
 
